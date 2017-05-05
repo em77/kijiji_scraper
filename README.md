@@ -9,11 +9,12 @@ Contruct the search you want on [Kijiji](http://www.kijiji.ca/). Be sure it is o
 
 ### Set your environment variables
 The following environment variables must be set:
-_FROM_ADDRESS_: The e-mail address the e-mail will be addressed from.
-_TO_ADDRESS_: The e-mail address the e-mail will be addressed to.
-_SUBJECT_: The subject of the e-mail.
-_SENDGRID_KEY_: Your Sendgrid API key.
-_SEARCH_URL_: Your search URL.
+
+**FROM_ADDRESS**: The e-mail address the e-mail will be addressed from.
+**TO_ADDRESS**: The e-mail address the e-mail will be addressed to.
+**SUBJECT**: The subject of the e-mail.
+**SENDGRID_KEY**: Your Sendgrid API key.
+**SEARCH_URL**: Your search URL.
 
 ### Run on your server
 It's ready to run on your server. Be sure it's set to respawn if necessary.
