@@ -24,4 +24,4 @@ The following environment variables must be set:
 It's ready to run on your server. Be sure it's set to respawn if necessary.
 
 ### Additional info
-Two files will be created when running `scraper.rb`. `last_href_file.txt` will store the last URL to be posted for your search so that the program can be restarted without losing track of the most recent URL e-mailed to you. `email_log.txt` will keep a log of Sendgrid's responses for debugging purposes.
+`last_href_file.txt` will store the last URL to be posted for your search so that the program can be restarted without losing track of the most recent URL e-mailed to you. `email_log.txt` will be created and will keep a log of Sendgrid's responses for debugging purposes.
