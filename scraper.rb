@@ -45,24 +45,19 @@ end
 
 domain = "http://www.kijiji.ca"
 
-loop do
-  # Randomize delay between searches
-  sleep [1, 2, 3].sample
+urls = search_urls(ENV["SEARCH_URL"], File.readlines("last_href_file.txt").join)
 
-  urls = search_urls(ENV["SEARCH_URL"], File.readlines("last_href_file.txt").join)
+break if urls.empty?
 
-  next if urls.empty?
+replace_file_contents(urls.first, "last_href_file.txt")
 
-  replace_file_contents(urls.first, "last_href_file.txt")
+urls.collect! {|url| url_prepender(domain, url)}
 
-  urls.collect! {|url| url_prepender(domain, url)}
+send_email(ENV["FROM_ADDRESS"],
+           ENV["TO_ADDRESS"],
+           ENV["SUBJECT"],
+           urls.join("\n\n"),
+           ENV["SENDGRID_KEY"])
 
-  send_email(ENV["FROM_ADDRESS"],
-             ENV["TO_ADDRESS"],
-             ENV["SUBJECT"],
-             urls.join("\n\n"),
-             ENV["SENDGRID_KEY"])
-
-  # Test e-mail body output in terminal
-  # puts urls.join("\n")
-end
+# Test e-mail body output in terminal
+# puts urls.join("\n")
