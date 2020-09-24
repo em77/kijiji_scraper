@@ -47,7 +47,7 @@ domain = "http://www.kijiji.ca"
 
 urls = search_urls(ENV["SEARCH_URL"], File.readlines("last_href_file.txt").join)
 
-break if urls.empty?
+abort "No new listings" if urls.empty?
 
 replace_file_contents(urls.first, "last_href_file.txt")
 
