@@ -1,63 +1,84 @@
 require "nokogiri"
 require "open-uri"
 require "sendgrid-ruby"
-include SendGrid
 
-def replace_file_contents(string, file_name)
-  file = File.new(file_name, "w")
-  file.print(string)
-  file.close
-end
+class SendGridWrapper
+  include SendGrid
 
-def write_to_file(string, file_name)
-  file = File.new(file_name, "a")
-  file.print(string)
-  file.close
-end
+  attr_reader :sg_api
 
-def send_email(from_address, to_address, subject_string, body_string, sg_key)
-  from = Email.new(email: from_address)
-  to = Email.new(email: to_address)
-  content = Content.new(type: "text/plain", value: body_string)
-  mail = Mail.new(from, subject_string, to, content)
-
-  sg = SendGrid::API.new(api_key: sg_key)
-  response = sg.client.mail._("send").post(request_body: mail.to_json)
-  log = "\n\n#{response.status_code}\n#{response.body}\n#{response.headers}\n\n"
-  write_to_file(log, "email_log.txt")
-end
-
-def search_urls(search_url, last_href)
-  doc = Nokogiri::HTML(open(search_url))
-  search_items = doc.css("div.regular-ad")
-  a_list = search_items.css("div.title a")
-  urls = []
-  a_list.each do |a|
-    break if a["href"] == last_href
-    urls << a["href"]
+  def initialize(api_key)
+    @sg_api = SendGrid::API.new(api_key: api_key)
   end
-  urls
+
+  def send_email(from_address, to_address, subject, body)
+    from = Email.new(email: from_address)
+    to = Email.new(email: to_address)
+    content = Content.new(type: "text/plain", value: body)
+    mail = Mail.new(from, subject, to, content)
+
+    response = sg_api.client.mail._("send").post(request_body: mail.to_json)
+    log_email("\n\n#{response.status_code}\n#{response.body}\n#{response.headers}\n\n")
+  end
+
+  def log_email(new_log)
+    File.open("email_log.txt", "a") { |file| file.print(new_log) }
+  end
 end
 
-def url_prepender(domain_to_prepend, url_string)
-  domain_to_prepend + url_string
+class KijijiParser
+  def self.parse_search_page_results(search_page_results, last_scraped_url)
+    doc = Nokogiri::HTML(search_page_results)
+    search_items = doc.css("div.regular-ad")
+    a_list = search_items.css("div.title a")
+    urls = []
+    a_list.each do |a|
+      break if a["href"] == last_scraped_url
+      urls << a["href"]
+    end
+    urls
+  end
 end
 
-domain = "http://www.kijiji.ca"
+class Scraper
+  DOMAIN = "http://www.kijiji.ca".freeze
 
-urls = search_urls(ENV["SEARCH_URL"], File.readlines("last_href_file.txt").join)
+  attr_reader :domain, :search_url, :sendgrid_wrapper
 
-abort "No new listings" if urls.empty?
+  def initialize(search_url, sendgrid_wrapper)
+    @search_url = search_url
+    @sendgrid_wrapper = sendgrid_wrapper
+  end
 
-replace_file_contents(urls.first, "last_href_file.txt")
+  def scrape
+    urls = find_new_urls
 
-urls.collect! {|url| url_prepender(domain, url)}
+    abort "No new listings" if urls.empty?
 
-send_email(ENV["FROM_ADDRESS"],
-           ENV["TO_ADDRESS"],
-           ENV["SUBJECT"],
-           urls.join("\n\n"),
-           ENV["SENDGRID_KEY"])
+    log_last_scraped_url(urls.first)
 
-# Test e-mail body output in terminal
-# puts urls.join("\n")
+    urls.collect! { |url| DOMAIN + url }
+
+    sendgrid_wrapper.send_email(
+      ENV["FROM_ADDRESS"],
+      ENV["TO_ADDRESS"],
+      ENV["SUBJECT"],
+      urls.join("\n\n")
+    )
+  end
+
+  def log_last_scraped_url(last_scraped_url)
+    File.open("last_scraped_log.txt", "w") { |file| file.print(last_scraped_url) }
+  end
+
+  def find_new_urls
+    KijijiParser.parse_search_page_results(URI.open(search_url), last_scraped_log_contents)
+  end
+
+  def last_scraped_log_contents
+    FileUtils.touch("last_scraped_log.txt") unless FileTest.exist?("last_scraped_log.txt")
+    File.readlines("last_scraped_log.txt").join
+  end
+end
+
+Scraper.new(ENV["SEARCH_URL"], SendGridWrapper.new(ENV["SENDGRID_KEY"])).scrape
